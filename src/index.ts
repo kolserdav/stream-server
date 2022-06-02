@@ -6,8 +6,7 @@ import cors from 'cors';
 import Stream from 'stream';
 import { server as WebSocketServer, connection as Connection } from 'websocket';
 dotenv.config();
-import { log, sendMessage } from './utils';
-import { WSTypes } from './client';
+import { log } from './utils';
 
 process.on('uncaughtException', (err: Error) => {
   log('error', 'uncaughtException', err);
@@ -63,7 +62,6 @@ wsServer.on('request', function (request) {
       connection.send(message.binaryData);
     } else if (message.type === 'utf8') {
       const msg = JSON.parse(message.utf8Data);
-      sendMessage({ connection, data: { type: WSTypes.timeUpdate, data: msg.data } });
     } else {
       log('warn', 'Message is', message);
     }
