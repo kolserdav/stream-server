@@ -19,8 +19,7 @@ process.on('unhandledRejection', (err: Error) => {
 const streams: Record<
   string,
   {
-    readable: Stream.Readable;
-    writable: Stream.Writable;
+    transform: Stream.Transform;
   }
 > = {};
 
@@ -41,7 +40,7 @@ const getKey = () => {
 
 app.get('/stream/1', (req, res) => {
   console.log(getKey(), 1);
-  streams[getKey()].readable.pipe(res);
+  streams[getKey()].transform.pipe(res);
 });
 
 const httpServer = http.createServer(app);
@@ -60,24 +59,14 @@ const wsServer = new WebSocketServer({
 wsServer.on('request', function (request) {
   const { key } = request;
   _key = key;
-  console.log(key);
-  const i = 1;
-  const _index = 0;
-  const _max = 100000;
-  const streamOpts: Stream.ReadableOptions = {
-    read(size) {
-      /** */
-    },
-  };
+
   streams[key] = {
-    readable: new Stream.Readable(streamOpts),
-    writable: new Stream.Writable({
-      write: () => {
-        /** */
+    transform: new Stream.Transform({
+      transform: (chunk, encoding, done) => {
+        done();
       },
     }),
   };
-  streams[key].readable.pipe(streams[key].writable);
   const connection = request.accept('json', request.origin);
   connections[key] = {
     id: 0,
@@ -85,7 +74,7 @@ wsServer.on('request', function (request) {
   };
   connection.on('message', async function (message) {
     if (message.type === 'binary') {
-      streams[key].writable.write(message.binaryData);
+      streams[key].transform.push(message.binaryData);
       // connection.send(message.binaryData);
     } else if (message.type === 'utf8') {
       const msg = JSON.parse(message.utf8Data);
