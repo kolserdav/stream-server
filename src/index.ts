@@ -6,7 +6,8 @@ import cors from 'cors';
 import Stream from 'stream';
 import { server as WebSocketServer, connection as Connection } from 'websocket';
 dotenv.config();
-import { log } from './utils';
+import { log, sendMessage } from './utils';
+import { WSTypes } from './client';
 
 process.on('uncaughtException', (err: Error) => {
   log('error', 'uncaughtException', err);
@@ -15,11 +16,13 @@ process.on('unhandledRejection', (err: Error) => {
   log('error', 'unhandledRejection', err);
 });
 
-const readable = new Stream.Readable({
-  read(size) {
-    /** */
-  },
-});
+const streams: Record<
+  string,
+  {
+    readable: Stream.Readable;
+    writable: Stream.Writable;
+  }
+> = {};
 
 const {
   env: { SERVER_PORT },
@@ -30,9 +33,15 @@ const connections: Record<string, { id: number; connection: Connection }> = {};
 
 const app = express();
 app.use(cors());
+let _key = '';
 
-app.get('/1', (req, res) => {
-  readable.pipe(res);
+const getKey = () => {
+  return _key;
+};
+
+app.get('/stream/1', (req, res) => {
+  console.log(getKey(), 1);
+  streams[getKey()].readable.pipe(res);
 });
 
 const httpServer = http.createServer(app);
@@ -50,7 +59,25 @@ const wsServer = new WebSocketServer({
 
 wsServer.on('request', function (request) {
   const { key } = request;
+  _key = key;
   console.log(key);
+  const i = 1;
+  const _index = 0;
+  const _max = 100000;
+  const streamOpts: Stream.ReadableOptions = {
+    read(size) {
+      /** */
+    },
+  };
+  streams[key] = {
+    readable: new Stream.Readable(streamOpts),
+    writable: new Stream.Writable({
+      write: () => {
+        /** */
+      },
+    }),
+  };
+  streams[key].readable.pipe(streams[key].writable);
   const connection = request.accept('json', request.origin);
   connections[key] = {
     id: 0,
@@ -58,10 +85,11 @@ wsServer.on('request', function (request) {
   };
   connection.on('message', async function (message) {
     if (message.type === 'binary') {
-      // readable.push(message.binaryData);
-      connection.send(message.binaryData);
+      streams[key].writable.write(message.binaryData);
+      // connection.send(message.binaryData);
     } else if (message.type === 'utf8') {
       const msg = JSON.parse(message.utf8Data);
+      sendMessage({ connection, data: { type: WSTypes.timeUpdate, data: msg.data } });
     } else {
       log('warn', 'Message is', message);
     }
