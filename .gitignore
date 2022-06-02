@@ -10,3 +10,5 @@ videos/*
 
 cloud/*
 !cloud/.gitkeep
+
+src/client.ts
