@@ -1,19 +1,72 @@
-import express from 'express';
-import { Server } from 'socket.io';
+/* eslint-disable no-case-declarations */
 import http from 'http';
+import express from 'express';
+import dotenv from 'dotenv';
+import cors from 'cors';
+import Stream from 'stream';
+import { server as WebSocketServer, connection as Connection } from 'websocket';
+dotenv.config();
+import { log } from './utils';
+
+process.on('uncaughtException', (err: Error) => {
+  log('error', 'uncaughtException', err);
+});
+process.on('unhandledRejection', (err: Error) => {
+  log('error', 'unhandledRejection', err);
+});
+
+const readable = new Stream.Readable({
+  read(size) {
+    /** */
+  },
+});
+
+const {
+  env: { SERVER_PORT },
+}: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+{ env: Record<string, string> } = process as any;
+
+const connections: Record<string, { id: number; connection: Connection }> = {};
 
 const app = express();
-const server = http.createServer(app);
-const io = new Server(server);
+app.use(cors());
 
 app.get('/1', (req, res) => {
-  res.sendFile(__dirname + '/index.html');
+  readable.pipe(res);
 });
 
-io.on('connection', (socket) => {
-  console.log('a user connected');
+const httpServer = http.createServer(app);
+
+httpServer.listen(parseInt(SERVER_PORT, 10), function () {
+  log('info', `Server is listening on port ${SERVER_PORT}`);
 });
 
-server.listen(3001, () => {
-  console.log('listening on *:3000');
+const wsServer = new WebSocketServer({
+  httpServer,
+  autoAcceptConnections: false,
+  maxReceivedFrameSize: 100000000,
+  maxReceivedMessageSize: 100000000,
+});
+
+wsServer.on('request', function (request) {
+  const { key } = request;
+  console.log(key);
+  const connection = request.accept('json', request.origin);
+  connections[key] = {
+    id: 0,
+    connection,
+  };
+  connection.on('message', async function (message) {
+    if (message.type === 'binary') {
+      readable.push(message.binaryData);
+    } else if (message.type === 'utf8') {
+      const msg = JSON.parse(message.utf8Data);
+    } else {
+      log('warn', 'Message is', message);
+    }
+  });
+
+  connection.on('close', function (reason, description) {
+    console.log('close', reason, description);
+  });
 });
