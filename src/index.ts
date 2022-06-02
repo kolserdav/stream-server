@@ -58,7 +58,8 @@ wsServer.on('request', function (request) {
   };
   connection.on('message', async function (message) {
     if (message.type === 'binary') {
-      readable.push(message.binaryData);
+      // readable.push(message.binaryData);
+      connection.send(message.binaryData);
     } else if (message.type === 'utf8') {
       const msg = JSON.parse(message.utf8Data);
     } else {
