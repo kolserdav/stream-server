@@ -1,0 +1,13 @@
+{
+  "eslint.validate": ["javascript", "typescript"],
+  "eslint.options": { "overrideConfigFile": ".eslintrc" },
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "eslint.format.enable": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": true
+  },
+  "files.associations": {
+    ".env.example": "ini",
+    ".env": "ini"
+  }
+}
